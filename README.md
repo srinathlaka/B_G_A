@@ -5,7 +5,6 @@ This Streamlit application facilitates the analysis of bacterial growth through 
 
 ## Folder Structure
 
-\`\`\`plaintext
 bacterial_growth_analysis/
 ├── app.py
 ├── components/
@@ -17,7 +16,7 @@ bacterial_growth_analysis/
 └── utils/
     ├── growth_models.py
     └── metrics.py
-\`\`\`
+
 
 ### Description of Components
 
