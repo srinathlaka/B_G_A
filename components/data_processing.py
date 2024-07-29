@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 
 # Select wells using buttons
 def select_wells(df, rows, columns, labels, message, session_key):

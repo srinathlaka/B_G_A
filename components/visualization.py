@@ -1,5 +1,6 @@
 import plotly.graph_objects as go
 import streamlit as st
+import numpy as np
 
 # Plot average and standard deviation with Plotly
 def plot_avg_and_std(df, selected_wells, y_pred=None, std_dev=None, log_scale=False):

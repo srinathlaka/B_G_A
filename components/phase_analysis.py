@@ -1,12 +1,59 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from scipy.optimize import curve_fit
-
 import scipy.signal as signal
+from scipy.optimize import curve_fit
 from scipy.integrate import odeint
+import sympy as sp
+import re
 from utils.metrics import calculate_metrics
+import plotly.express as px
+import plotly.graph_objects as go
 
+# User-provided ODE model class
+class UserProvidedODE:
+    def __init__(self, ode_function):
+        self.ode_function = ode_function
+
+    def model_fun(self, state, t, *params):
+        return eval(self.ode_function)
+
+# Function to solve the ODE
+def solve_ode(model, t, *params):
+    state0 = [0.01]  # Initial condition for the ODE
+    sol = odeint(model.model_fun, state0, t, args=params)
+    return sol[:, 0]
+
+# Function to parse the user-provided ODE function
+def parse_ode_function(ode_function):
+    try:
+        num_params = len(set([int(p[7:8]) for p in ode_function.split() if p.startswith("params[")]))
+        return num_params
+    except Exception as e:
+        st.error(f"Invalid ODE function: {e}")
+        return None
+
+# Function to convert user ODE to Python format
+def convert_to_python_format(ode_function):
+    return ode_function.replace("^", "**")
+
+# Function to display ODE in LaTeX
+def display_ode_latex(ode_function):
+    x = sp.symbols('x')
+    params = sp.symbols('params0:10')  # Create 10 dummy parameters
+    ode_sympy = sp.sympify(ode_function.replace('state[0]', 'x'), locals=dict(x=x, params=params))
+    return sp.latex(ode_sympy)
+
+# Function to display custom function in LaTeX
+def display_custom_function_latex(custom_function):
+    t = sp.symbols('t')
+    # Parse the function string to get the symbols
+    params = sorted(set(re.findall(r'[a-zA-Z]\w*', custom_function)) - {'t'})
+    symbols = sp.symbols(' '.join(params))
+    custom_sympy = sp.sympify(custom_function, locals=dict(t=t, **{param: sym for param, sym in zip(params, symbols)}))
+    return sp.latex(custom_sympy)
+
+# Initialize session state for phases
 def initialize_session_state():
     if 'phases' not in st.session_state:
         st.session_state.phases = []
@@ -45,8 +92,8 @@ def fit_model_to_phase(phase, phase_data):
 
 # Fit predefined growth models
 def fit_predefined_model(phase, phase_data):
-    from scipy.optimize import curve_fit
-    from utils.growth_models import exponential_growth, logistic_growth, baranyi_growth, lag_exponential_saturation_growth    
+    from utils.growth_models import exponential_growth, logistic_growth, baranyi_growth, lag_exponential_saturation_growth
+    
     if phase_data.empty:
         st.error("Phase data is empty. Please check the start and end times.")
         return None, None, None
