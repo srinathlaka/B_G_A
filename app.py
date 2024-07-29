@@ -1,4 +1,6 @@
 import streamlit as st
+import numpy as np
+import pandas as pd
 from components.file_upload import upload_file, read_data, select_layout
 from components.data_processing import select_wells, clear_selected_wells, perform_background_subtraction
 from components.model_fitting import fit_growth_model, compute_confidence_intervals

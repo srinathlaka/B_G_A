@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+from scipy.optimize import curve_fit
+
 import scipy.signal as signal
 from scipy.integrate import odeint
 from utils.metrics import calculate_metrics
@@ -44,8 +46,7 @@ def fit_model_to_phase(phase, phase_data):
 # Fit predefined growth models
 def fit_predefined_model(phase, phase_data):
     from scipy.optimize import curve_fit
-    from utils.growth_models import exponential_growth, logistic_growth, baranyi_growth, lag_exponential_saturation_growth
-    
+    from utils.growth_models import exponential_growth, logistic_growth, baranyi_growth, lag_exponential_saturation_growth    
     if phase_data.empty:
         st.error("Phase data is empty. Please check the start and end times.")
         return None, None, None
