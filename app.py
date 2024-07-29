@@ -1,3 +1,4 @@
+import re
 import streamlit as st
 import numpy as np
 import pandas as pd
@@ -5,8 +6,9 @@ from components.file_upload import upload_file, read_data, select_layout, genera
 from components.data_processing import select_wells, clear_selected_wells, perform_background_subtraction
 from components.model_fitting import fit_growth_model, compute_confidence_intervals
 from components.visualization import plot_avg_and_std, plot_confidence_intervals, plot_selected_wells
-from components.phase_analysis import initialize_session_state, create_plot, detect_phases, plot_detected_phases, add_phase, delete_phase, fit_model_to_phase
+from components.phase_analysis import convert_to_python_format, display_custom_function_latex, display_ode_latex, initialize_session_state, create_plot, detect_phases, parse_ode_function, plot_detected_phases, add_phase, delete_phase, fit_model_to_phase
 from utils.growth_models import polynomial_growth, polynomial_func
+from utils.metrics import calculate_metrics
 
 def main():
     st.set_page_config(page_title="Bacterial Growth Analysis", page_icon="🔬", layout="wide")
