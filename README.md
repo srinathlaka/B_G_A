@@ -4,20 +4,20 @@ This Streamlit application facilitates the analysis of bacterial growth through 
 
 ## Folder Structure
 
-bacterial_growth_analysis/
-├── app.py
-├── components/
-│ ├── file_upload.py
-│ ├── data_processing.py
-│ ├── model_fitting.py
-│ ├── visualization.py
-│ └── phase_analysis.py
-└── utils/
-├── growth_models.py
-└── metrics.py
+`bacterial_growth_analysis/`
 
+- `app.py`
+- `components/`
+  - `file_upload.py`
+  - `data_processing.py`
+  - `model_fitting.py`
+  - `visualization.py`
+  - `phase_analysis.py`
+- `utils/`
+  - `growth_models.py`
+  - `metrics.py`
 
-### Description of Components
+## Description of Components
 
 - `app.py`: Main entry point for the Streamlit application.
 - `components/`:
