@@ -60,23 +60,56 @@ def main():
             std_dev_blank_cells = df[selected_blank_wells].std(axis=1)
             df['Average'] = df[selected_blank_wells].mean(axis=1)
 
+            # Store model selection in session state
+            if 'selected_model' not in st.session_state:
+                st.session_state['selected_model'] = "Polynomial Growth"
+            
+            selected_model = st.selectbox("Select Growth Model", ["Polynomial Growth", "Polynomial Function"], index=["Polynomial Growth", "Polynomial Function"].index(st.session_state['selected_model']))
+            st.session_state['selected_model'] = selected_model
+
+            # Initialize session state for fit parameters
+            if 'popt' not in st.session_state:
+                st.session_state['popt'] = None
+            if 'pcov' not in st.session_state:
+                st.session_state['pcov'] = None
+
+            # Fit model and store result in session state
             if st.button("Fit Model to Blank Wells"):
-                fit_average = True
-                selected_model = st.selectbox("Select Growth Model", ["Polynomial Growth", "Polynomial Function"])
-                st.write("Fit of the average blank cells")
-                popt, pcov = fit_growth_model(selected_model, df['Time'], df['Average'])
-                st.write("Parameter values (popt):", popt)
+                try:
+                    popt, pcov = fit_growth_model(selected_model, df['Time'], df['Average'])
+                    st.session_state['popt'] = popt
+                    st.session_state['pcov'] = pcov
+                    st.write("Fitted Parameters:", popt)
+                except Exception as e:
+                    st.error(f"Error during fitting: {e}")
+
+            # Store and display the plot in session state
+            if 'fitted_plot' not in st.session_state:
+                st.session_state['fitted_plot'] = None
+
+            if st.session_state['popt'] is not None:
                 if selected_model == "Polynomial Growth":
-                    y_pred = polynomial_growth(df['Time'], *popt)
+                    y_pred = polynomial_growth(df['Time'], *st.session_state['popt'])
                 elif selected_model == "Polynomial Function":
-                    y_pred = polynomial_func(df['Time'], *popt)
+                    y_pred = polynomial_func(df['Time'], *st.session_state['popt'])
 
-                plot_avg_and_std(df, selected_blank_wells, y_pred, std_dev_blank_cells)
+                st.session_state['fitted_plot'] = plot_avg_and_std(df, selected_blank_wells, y_pred, std_dev_blank_cells)
 
+            # Display plot if it exists
+            if st.session_state['fitted_plot'] is not None:
+                st.plotly_chart(st.session_state['fitted_plot'])
+
+            # Display confidence intervals
+            if st.session_state['popt'] is not None and st.session_state['pcov'] is not None:
                 residuals = df['Average'] - y_pred
-                dof = len(df['Time']) - len(popt)
+                dof = len(df['Time']) - len(st.session_state['popt'])
                 residual_variance = np.var(residuals, ddof=dof)
-                lower_bound, upper_bound = compute_confidence_intervals(df['Time'], popt, pcov, 0.05, dof, residual_variance)
+
+                # Use the correct model type for computing confidence intervals
+                lower_bound, upper_bound = compute_confidence_intervals(
+                    df['Time'], st.session_state['popt'], st.session_state['pcov'], 0.05, dof, residual_variance, selected_model
+                )
+
                 plot_confidence_intervals(df, lower_bound, upper_bound, y_pred, std_dev_blank_cells)
 
             clear_blank_wells_button = st.button("Clear selected blank wells")
@@ -122,6 +155,17 @@ def main():
                 fig = plot_detected_phases(df_bg_subtracted['Time'], average_ema, peaks_ema, change_points_ema)
                 st.plotly_chart(fig)
 
+                st.session_state.phases = []
+                for start, end in zip(change_points_ema[:-1], change_points_ema[1:]):
+                    st.session_state.phases.append({
+                        'start': df_bg_subtracted['Time'].iloc[start],
+                        'end': df_bg_subtracted['Time'].iloc[end],
+                        'model': 'Exponential',
+                        'automatic': False,
+                        'initial_guesses': {},
+                        'ode_function': '',
+                        'custom_function': ''
+                    })
                 st.session_state.phases = []
                 for start, end in zip(change_points_ema[:-1], change_points_ema[1:]):
                     st.session_state.phases.append({
@@ -277,18 +321,19 @@ def main():
                         delete_phase(i)
                         st.experimental_rerun()
 
-        for result in st.session_state.fit_results:
-            st.write(f"### Fit Results for Phase {result['phase_index'] + 1}")
-            metrics_df = pd.DataFrame({
-                "Model": [result["model_name"]],
-                "RSS": [result["metrics"][0]],
-                "R-squared": [result["metrics"][1]],
-                "AIC": [result["metrics"][2]]
-            })
-            st.write(metrics_df)
-            params_df = pd.DataFrame([result["popt"]], columns=['Parameter ' + str(i+1) for i in range(len(result["popt"]))])
-            st.write(f"### Fitted Parameters for Phase {result['phase_index'] + 1}")
-            st.write(params_df)
+                    # Display fit results for each phase
+                    for result in st.session_state.fit_results:
+                        st.write(f"### Fit Results for Phase {result['phase_index'] + 1}")
+                        metrics_df = pd.DataFrame({
+                            "Model": [result["model_name"]],
+                            "RSS": [result["metrics"][0]],
+                            "R-squared": [result["metrics"][1]],
+                            "AIC": [result["metrics"][2]]
+                        })
+                        st.write(metrics_df)
+                        params_df = pd.DataFrame([result["popt"]], columns=['Parameter ' + str(i+1) for i in range(len(result["popt"]))])
+                        st.write(f"### Fitted Parameters for Phase {result['phase_index'] + 1}")
+                        st.write(params_df)
 
 if __name__ == "__main__":
     main()

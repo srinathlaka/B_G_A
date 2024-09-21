@@ -13,19 +13,34 @@ def fit_growth_model(model_type, data_x, data_y):
     else:
         raise ValueError("Invalid model type")
 
-# Compute normal confidence intervals
-def compute_confidence_intervals(time, params, covariance, alpha, dof, residual_variance):
+# Compute normal confidence intervals for both models
+def compute_confidence_intervals(time, params, covariance, alpha, dof, residual_variance, model_type):
     from scipy.stats import t
     t_critical = t.ppf(1 - alpha / 2, dof)
+    
+    # Initialize the Jacobian matrix based on model type
     J = np.zeros((len(time), len(params)))
-    J[:, 0] = np.power(time, params[1])
-    J[:, 1] = params[0] * np.log(time + 1e-8) * np.power(time, params[1])  # Adding small constant to avoid log(0)
-    J[:, 2] = 1
+    
+    if model_type == "Polynomial Growth":
+        # Jacobian for polynomial growth
+        J[:, 0] = np.power(time, params[1])
+        J[:, 1] = params[0] * np.log(time + 1e-8) * np.power(time, params[1])  # Log to avoid log(0)
+        J[:, 2] = 1
+        fitted_curve = polynomial_growth(time, *params)
+        
+    elif model_type == "Polynomial Function":
+        # Jacobian for polynomial function (quadratic)
+        J[:, 0] = time**2  # Partial derivative w.r.t `a`
+        J[:, 1] = time     # Partial derivative w.r.t `b`
+        J[:, 2] = 1        # Partial derivative w.r.t `c`
+        fitted_curve = polynomial_func(time, *params)
+    
+    # Compute the confidence intervals
     conf_interval = np.zeros(len(time))
-    fitted_od_growth = polynomial_growth(time, *params)
     for i in range(len(time)):
         gradient = J[i, :]
         conf_interval[i] = np.sqrt(np.dot(gradient, np.dot(covariance, gradient.T)) + residual_variance)
-    lower_bound = fitted_od_growth - t_critical * conf_interval
-    upper_bound = fitted_od_growth + t_critical * conf_interval
+    
+    lower_bound = fitted_curve - t_critical * conf_interval
+    upper_bound = fitted_curve + t_critical * conf_interval
     return lower_bound, upper_bound
