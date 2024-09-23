@@ -155,17 +155,7 @@ def main():
                 fig = plot_detected_phases(df_bg_subtracted['Time'], average_ema, peaks_ema, change_points_ema)
                 st.plotly_chart(fig)
 
-                st.session_state.phases = []
-                for start, end in zip(change_points_ema[:-1], change_points_ema[1:]):
-                    st.session_state.phases.append({
-                        'start': df_bg_subtracted['Time'].iloc[start],
-                        'end': df_bg_subtracted['Time'].iloc[end],
-                        'model': 'Exponential',
-                        'automatic': False,
-                        'initial_guesses': {},
-                        'ode_function': '',
-                        'custom_function': ''
-                    })
+                # Append phases to session state
                 st.session_state.phases = []
                 for start, end in zip(change_points_ema[:-1], change_points_ema[1:]):
                     st.session_state.phases.append({
@@ -187,7 +177,6 @@ def main():
                         phase['start'] = st.text_input(f'Start Time for Phase {i + 1}', value=str(phase['start']), key=f'start_{i}')
                     with col2:
                         phase['end'] = st.text_input(f'End Time for Phase {i + 1}', value=str(phase['end']), key=f'end_{i}')
-
                     phase['automatic'] = st.checkbox(f'Automatic Fit', value=phase['automatic'], key=f'automatic_{i}')
                     if not phase['automatic']:
                         phase['model'] = st.selectbox(f'Model', ['Exponential', 'Logistic', 'Baranyi', 'Lag-Exponential-Saturation', 'UserProvidedODE', 'UserProvidedFunction'], index=0, key=f'model_{i}')
@@ -321,19 +310,20 @@ def main():
                         delete_phase(i)
                         st.experimental_rerun()
 
-                    # Display fit results for each phase
-                    for result in st.session_state.fit_results:
-                        st.write(f"### Fit Results for Phase {result['phase_index'] + 1}")
-                        metrics_df = pd.DataFrame({
-                            "Model": [result["model_name"]],
-                            "RSS": [result["metrics"][0]],
-                            "R-squared": [result["metrics"][1]],
-                            "AIC": [result["metrics"][2]]
-                        })
-                        st.write(metrics_df)
-                        params_df = pd.DataFrame([result["popt"]], columns=['Parameter ' + str(i+1) for i in range(len(result["popt"]))])
-                        st.write(f"### Fitted Parameters for Phase {result['phase_index'] + 1}")
-                        st.write(params_df)
+        # Display fit results for each phase
+        for result in st.session_state.fit_results:
+            st.write(f"### Fit Results for Phase {result['phase_index'] + 1}")
+            metrics_df = pd.DataFrame({
+                "Model": [result["model_name"]],
+                "RSS": [result["metrics"][0]],
+                "R-squared": [result["metrics"][1]],
+                "AIC": [result["metrics"][2]]
+            })
+            st.write(metrics_df)
+            params_df = pd.DataFrame([result["popt"]], columns=['Parameter ' + str(i+1) for i in range(len(result["popt"]))])
+            st.write(f"### Fitted Parameters for Phase {result['phase_index'] + 1}")
+            st.write(params_df)
 
 if __name__ == "__main__":
     main()
+
