@@ -8,7 +8,7 @@ This Streamlit application facilitates the analysis of bacterial growth through 
 
 - `app.py`
 - `assets/`
-  -`test.xlsx`
+  - `test.xlsx`
 - `components/`
   - `file_upload.py`
   - `data_processing.py`
