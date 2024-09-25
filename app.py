@@ -34,6 +34,14 @@ def show_sample_file_section():
     sample_file = create_sample_file()
     st.dataframe(sample_file)
 
+def provide_example_excel():
+    with open("test1.xlsx", "rb") as file:
+        st.download_button(
+            label="Download Example Spreadsheet",
+            data=file,
+            file_name="example_spreadsheet.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
 def main():
     st.set_page_config(page_title="Bacterial Growth Analysis", page_icon="🔬", layout="wide")
@@ -62,6 +70,11 @@ def main():
 
     st.sidebar.header("Bacterial Growth Analysis")
     st.sidebar.write("Please upload the files in .xlsx or .csv format only")
+
+    # Provide a link to download the example spreadsheet
+    st.subheader("Spreadsheet Example")
+    st.write("You can download the example spreadsheet file with the OD table and plate layout.")
+    provide_example_excel()  # Add the download button for users to download the example file
 
     # Show the sample file format to guide users
     show_sample_file_section()
