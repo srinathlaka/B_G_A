@@ -7,6 +7,8 @@ This Streamlit application facilitates the analysis of bacterial growth through 
 `bacterial_growth_analysis/`
 
 - `app.py`
+- `assets/`
+  -`test.xlsx`
 - `components/`
   - `file_upload.py`
   - `data_processing.py`
@@ -20,6 +22,8 @@ This Streamlit application facilitates the analysis of bacterial growth through 
 ## Description of Components
 
 - `app.py`: Main entry point for the Streamlit application.
+- `assets/`
+  - `test.xlsx`: Sample data file for testing purposes.
 - `components/`:
   - `file_upload.py`: Handles file uploading and reading.
   - `data_processing.py`: Manages data selection and background subtraction.
