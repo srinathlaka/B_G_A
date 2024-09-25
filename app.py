@@ -10,6 +10,31 @@ from components.phase_analysis import convert_to_python_format, display_custom_f
 from utils.growth_models import polynomial_growth, polynomial_func
 from utils.metrics import calculate_metrics
 
+def create_sample_file():
+    sample_data = {
+        "Time": [0, 1, 2, 3, 4],
+        "A1": [0.1, 0.2, 0.3, 0.4, 0.5],
+        "A2": [0.15, 0.25, 0.35, 0.45, 0.55],
+        "B1": [0.05, 0.1, 0.15, 0.2, 0.25],
+        "B2": [0.2, 0.3, 0.4, 0.5, 0.6]
+    }
+    df = pd.DataFrame(sample_data)
+    return df
+
+def show_sample_file_section():
+    st.subheader("Sample Data Format")
+    st.write("""
+        Please ensure that your file follows this format:
+        
+        - The first column should be labeled `Time` and contain the time points.
+        - Subsequent columns should represent well measurements, like `A1`, `A2`, etc.
+    """)
+
+    # Display a small sample DataFrame as an example
+    sample_file = create_sample_file()
+    st.dataframe(sample_file)
+
+
 def main():
     st.set_page_config(page_title="Bacterial Growth Analysis", page_icon="🔬", layout="wide")
     st.markdown("<h1 style='text-align: center; color: #4CAF50;'>Bacterial Growth Analysis</h1>", unsafe_allow_html=True)
@@ -37,6 +62,9 @@ def main():
 
     st.sidebar.header("Bacterial Growth Analysis")
     st.sidebar.write("Please upload the files in .xlsx or .csv format only")
+
+    # Show the sample file format to guide users
+    show_sample_file_section()
 
     rows, columns = select_layout()
     uploaded_file = upload_file()
