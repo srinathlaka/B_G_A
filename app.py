@@ -35,7 +35,7 @@ def show_sample_file_section():
     st.dataframe(sample_file)
 
 def provide_example_excel():
-    with open("assets\test1.xlsx", "rb") as file:
+    with open("assets/test1.xlsx", "rb") as file:
         st.download_button(
             label="Download Example Spreadsheet",
             data=file,
