@@ -18,18 +18,26 @@ def select_wells(df, rows, columns, labels, message, session_key):
                     button_label = labels[index]
                     if button_label != "Time":
                         button_key = f"button_{session_key}_{i}_{j}"
-                        if cols[j].button(button_label, key=button_key):
-                            if button_label in selected_wells:
-                                selected_wells.remove(button_label)
-                            else:
-                                selected_wells.append(button_label)
-                            selected_wells = sorted(selected_wells)
-                            st.session_state[session_key] = set(selected_wells)
+                        
+                        # Check if the column associated with the well has data
+                        if df[button_label].isnull().all():
+                            # If the data is missing, disable the button
+                            cols[j].button(button_label, key=button_key, disabled=True)
+                        else:
+                            # If data exists, create an active button
+                            if cols[j].button(button_label, key=button_key):
+                                if button_label in selected_wells:
+                                    selected_wells.remove(button_label)
+                                else:
+                                    selected_wells.append(button_label)
+                                selected_wells = sorted(selected_wells)
+                                st.session_state[session_key] = set(selected_wells)
 
     selected_wells_text = f"Currently Selected Wells: " + ", ".join(selected_wells) if selected_wells else "None"
     message.write(selected_wells_text)
 
     return selected_wells
+
 
 # Clear selected wells
 def clear_selected_wells(session_key, message):
