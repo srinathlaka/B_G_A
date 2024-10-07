@@ -74,13 +74,22 @@ def main():
     # Provide a link to download the example spreadsheet
     st.subheader("Spreadsheet Example")
     st.write("You can download the example spreadsheet file with the OD table and plate layout.")
-    provide_example_excel()  # Add the download button for users to download the example file
+    try:
+        provide_example_excel()
+    except FileNotFoundError:
+        st.error("Example Excel file not found.")
 
     # Show the sample file format to guide users
     show_sample_file_section()
 
-    rows, columns = select_layout()
+    try:
+        rows, columns = select_layout()
+    except Exception as e:
+        st.error("Error selecting layout. Please check your input.")
+
     uploaded_file = upload_file()
+
+
 
     if uploaded_file is not None:
         df = read_data(uploaded_file, rows, columns)
@@ -166,7 +175,11 @@ def main():
                 clear_selected_wells("selected_sample_replicates", selected_sample_replicates_message)
 
             if st.button("Perform Background Subtraction"):
-                st.session_state.df_bg_subtracted = perform_background_subtraction(df.copy(), selected_blank_wells, selected_sample_replicates)
+                try:
+                    st.session_state.df_bg_subtracted = perform_background_subtraction(df.copy(), selected_blank_wells, selected_sample_replicates)
+                except Exception as e:
+                    st.error("Error performing background subtraction. Please ensure correct well selection.")
+
                 if st.session_state.df_bg_subtracted is not None:
                     st.success("Background subtraction completed successfully!")
                     st.write(st.session_state.df_bg_subtracted)
@@ -183,7 +196,12 @@ def main():
 
         use_auto_detection = st.checkbox("Use Automatic Phase Detection", value=True)
 
-        fig = create_plot(df_bg_subtracted)
+        try:
+            fig = create_plot(df_bg_subtracted)
+            st.plotly_chart(fig)
+        except Exception as e:
+            st.error("Error generating plot. Please check your data.")
+
         plot_placeholder = st.plotly_chart(fig)
 
         if use_auto_detection:

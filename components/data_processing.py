@@ -1,13 +1,31 @@
 import streamlit as st
-import pandas as pd
-import numpy as np
+import plotly.graph_objects as go
 
-# Select wells using buttons
+# Function to plot Time vs OD with adjusted size
+def plot_time_vs_od(df, well, plot_placeholder):
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df['Time'], y=df[well], mode='lines', name=well))
+    
+    # Adjust the layout for a smaller, square-like plot
+    fig.update_layout(
+        title=f"Time vs {well} OD", 
+        xaxis_title='Time', 
+        yaxis_title='OD', 
+        template='plotly_white',
+        width=300,  # Set the width of the plot
+        height=300  # Set the height to make it more square
+    )
+    plot_placeholder.plotly_chart(fig)
+
+# Select wells using buttons and plot Time vs OD below the grid
 def select_wells(df, rows, columns, labels, message, session_key):
     if session_key not in st.session_state:
         st.session_state[session_key] = set()
 
     selected_wells = sorted(list(st.session_state[session_key]))
+
+    # Create a placeholder for the plots
+    plot_container = st.empty()
 
     with st.container():
         for i in range(rows):
@@ -30,6 +48,11 @@ def select_wells(df, rows, columns, labels, message, session_key):
                                     selected_wells.remove(button_label)
                                 else:
                                     selected_wells.append(button_label)
+                                    
+                                    # Plot the selected well's data below the grid
+                                    with plot_container.container():
+                                        plot_time_vs_od(df, button_label, plot_container)
+                                    
                                 selected_wells = sorted(selected_wells)
                                 st.session_state[session_key] = set(selected_wells)
 
