@@ -45,9 +45,9 @@ def show_sample_file_section():
 
 
 def provide_example_excel():
-    with open("assets/test1.xlsx", "rb") as file:
+    with open("assets\example_spreadsheet.xlsx", "rb") as file:
         st.download_button(
-            label="Download Example Spreadsheet",
+            label="Download Example Spreadsheet Fo Reference",
             data=file,
             file_name="example_spreadsheet.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
