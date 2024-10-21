@@ -45,7 +45,7 @@ def show_sample_file_section():
 
 
 def provide_example_excel():
-    with open("assets\example_spreadsheet.xlsx", "rb") as file:
+    with open("assets/example_spreadsheet.xlsx", "rb") as file:
         st.download_button(
             label="Download Example Spreadsheet Fo Reference",
             data=file,
