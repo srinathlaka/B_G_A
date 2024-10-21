@@ -6,12 +6,19 @@ from utils.growth_models import polynomial_growth, polynomial_func
 def fit_growth_model(model_type, data_x, data_y):
     if model_type == "Polynomial Growth":
         popt, pcov = curve_fit(polynomial_growth, data_x, data_y)
-        return popt, pcov
     elif model_type == "Polynomial Function":
         popt, pcov = curve_fit(polynomial_func, data_x, data_y)
-        return popt, pcov
     else:
         raise ValueError("Invalid model type")
+
+    # Calculate standard deviations (errors) for each parameter from the covariance matrix
+    if pcov is not None:
+        perr = np.sqrt(np.diag(pcov))  # Standard deviations of the parameters
+    else:
+        perr = None
+
+    return popt, perr, pcov  # Also return pcov to use in CI calculation
+
 
 # Compute normal confidence intervals for both models
 def compute_confidence_intervals(time, params, covariance, alpha, dof, residual_variance, model_type):

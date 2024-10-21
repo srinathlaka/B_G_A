@@ -12,7 +12,7 @@ def exponential_growth(t, mu, X0):
 def logistic_growth(t, mu, X0, K):
     return (X0 * np.exp(mu * t)) / (1 + (X0 / K) * (np.exp(mu * t) - 1))
 
-def baranyi_growth(t, X0, mu, q0):
+def baranyi_growth(t, mu, X0, q0):
     q_t = q0 * np.exp(mu * t)
     return X0 * (1 + q_t) / (1 + q0)
 

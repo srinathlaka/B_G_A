@@ -67,16 +67,39 @@ def clear_selected_wells(session_key, message):
     st.session_state[session_key].clear()
     message.warning("Selected wells cleared.")
 
-# Perform background subtraction
-def perform_background_subtraction(df, selected_blank_wells, selected_sample_replicates):
-    if len(selected_blank_wells) == 0 or len(selected_sample_replicates) == 0:
-        st.warning("Please select both blank wells and sample replicates for subtraction.")
-        return None
+# Perform background subtraction and set negative values to zero
 
-    selected_blank_wells_list = list(selected_blank_wells)
-    blank_mean = df[selected_blank_wells_list].mean(axis=1)
 
-    for sample_replicate in selected_sample_replicates:
-        df[sample_replicate] = df[sample_replicate] - blank_mean
-
-    return df
+def perform_background_subtraction(df, blank_wells, sample_wells):
+    """
+    Perform background subtraction by subtracting the average of the blank wells
+    from the sample wells' data. This function also calculates the average and
+    standard deviation for the selected sample wells.
+    
+    Parameters:
+    - df: DataFrame containing the raw well data.
+    - blank_wells: List of blank well names.
+    - sample_wells: List of sample well names.
+    
+    Returns:
+    - A new DataFrame with background-subtracted data, including 'Average' and 'Std_Dev' columns.
+    """
+    # Check if blank wells are provided
+    if len(blank_wells) == 0:
+        raise ValueError("No blank wells selected for background subtraction.")
+    
+    # Calculate the mean for the blank wells across all time points
+    blank_avg = df[blank_wells].mean(axis=1)
+    
+    # Subtract the blank well average from each sample well
+    df_subtracted = df.copy()
+    for well in sample_wells:
+        df_subtracted[well] = df[well] - blank_avg
+        # Set negative values to zero
+        df_subtracted[well] = df_subtracted[well].apply(lambda x: max(x, 0))
+    
+    # Calculate the average and standard deviation across the sample wells
+    df_subtracted['Average'] = df_subtracted[sample_wells].mean(axis=1)
+    df_subtracted['Std_Dev'] = df_subtracted[sample_wells].std(axis=1)
+    
+    return df_subtracted

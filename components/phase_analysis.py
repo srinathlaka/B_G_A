@@ -65,6 +65,7 @@ def initialize_session_state():
         phase.setdefault('initial_guesses', {})
         phase.setdefault('ode_function', '')
         phase.setdefault('custom_function', '')
+    
     if 'submit_equation' not in st.session_state:
         st.session_state.submit_equation = False
     if 'num_params' not in st.session_state:
@@ -75,6 +76,15 @@ def initialize_session_state():
         st.session_state.ode_function_latex = ''
     if 'fit_results' not in st.session_state:
         st.session_state.fit_results = []
+    
+    # NEW PART - ensure df_bg_subtracted and plots are not reset
+    if 'df_bg_subtracted' not in st.session_state:
+        st.session_state.df_bg_subtracted = None
+    if 'selected_wells_plot' not in st.session_state:
+        st.session_state.selected_wells_plot = None
+    if 'average_with_std_plot' not in st.session_state:
+        st.session_state.average_with_std_plot = None
+
 
 def add_phase():
     st.session_state.phases.append({'start': 0, 'end': 0, 'model': 'Exponential', 'automatic': False, 'initial_guesses': {}, 'ode_function': '', 'custom_function': ''})
