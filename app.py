@@ -255,9 +255,8 @@ def main():
                     phase['start'] = st.text_input(f'Start Time for Phase {i + 1}', value=str(phase['start']), key=f'start_{i}')
                 with col2:
                     phase['end'] = st.text_input(f'End Time for Phase {i + 1}', value=str(phase['end']), key=f'end_{i}')
-                phase['automatic'] = st.checkbox(f'Automatic Fit', value=phase['automatic'], key=f'automatic_{i}')
-                if not phase['automatic']:
-                    phase['model'] = st.selectbox(f'Model', ['Exponential', 'Logistic', 'Baranyi', 'Lag-Exponential-Saturation', 'UserProvidedODE', 'UserProvidedFunction'], index=0, key=f'model_{i}')
+                
+                phase['model'] = st.selectbox(f'Model', ['Exponential', 'Logistic', 'Baranyi', 'Lag-Exponential-Saturation', 'UserProvidedODE', 'UserProvidedFunction'], index=0, key=f'model_{i}')
 
                 phase_data = df_bg_subtracted[(df_bg_subtracted['Time'] > float(phase['start'])) & (df_bg_subtracted['Time'] <= float(phase['end']))]
 
@@ -330,7 +329,7 @@ def main():
                                 fig = create_plot(df_bg_subtracted)
                                 plot_placeholder.plotly_chart(fig)
 
-                elif not phase['automatic']:
+                else:
                     st.write(f"### Initial Guesses for {phase['model']} Model")
                     initial_guesses = {}
                     if not phase_data.empty:
@@ -370,20 +369,6 @@ def main():
                                 })
                                 fig = create_plot(df_bg_subtracted)
                                 plot_placeholder.plotly_chart(fig)
-
-                if phase['automatic']:
-                    model_name, fit, popt = fit_model_to_phase(phase, phase_data)
-                    if model_name:
-                        metrics = calculate_metrics(phase_data['Average'], fit, len(popt))
-                        st.session_state.fit_results.append({
-                            "model_name": model_name,
-                            "fit": fit,
-                            "popt": popt,
-                            "metrics": metrics,
-                            "phase_index": i
-                        })
-                        fig = create_plot(df_bg_subtracted)
-                        plot_placeholder.plotly_chart(fig)
 
                 if st.button('Delete Phase', key=f'delete_{i}'):
                     delete_phase(i)
