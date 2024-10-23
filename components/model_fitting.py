@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.stats import t
 from scipy.optimize import curve_fit
 from utils.growth_models import polynomial_growth, polynomial_func
 
@@ -20,34 +21,74 @@ def fit_growth_model(model_type, data_x, data_y):
     return popt, perr, pcov  # Also return pcov to use in CI calculation
 
 
-# Compute normal confidence intervals for both models
+# Compute normal confidence intervals for all models
+
 def compute_confidence_intervals(time, params, covariance, alpha, dof, residual_variance, model_type):
-    from scipy.stats import t
     t_critical = t.ppf(1 - alpha / 2, dof)
-    
-    # Initialize the Jacobian matrix based on model type
+
+    # Skip confidence intervals for user-provided models
+    if model_type in ['UserProvidedODE', 'UserProvidedFunction']:
+        return None, None  # Return None for CIs for user-provided models
+
+    # Initialize the Jacobian matrix
     J = np.zeros((len(time), len(params)))
-    
-    if model_type == "Polynomial Growth":
-        # Jacobian for polynomial growth
-        J[:, 0] = np.power(time, params[1])
-        J[:, 1] = params[0] * np.log(time + 1e-8) * np.power(time, params[1])  # Log to avoid log(0)
-        J[:, 2] = 1
-        fitted_curve = polynomial_growth(time, *params)
+
+    # Compute the Jacobian matrix based on the model type
+    if model_type == "Exponential":
+        J[:, 0] = params[1] * time * np.exp(params[0] * time)  # Derivative w.r.t mu
+        J[:, 1] = np.exp(params[0] * time)  # Derivative w.r.t X0
+
+    elif model_type == "Logistic":
+        exp_mu_t = np.exp(params[0] * time)
+        denom = 1 + (params[1] / params[2]) * (exp_mu_t - 1)
         
-    elif model_type == "Polynomial Function":
-        # Jacobian for polynomial function (quadratic)
-        J[:, 0] = time**2  # Partial derivative w.r.t `a`
-        J[:, 1] = time     # Partial derivative w.r.t `b`
-        J[:, 2] = 1        # Partial derivative w.r.t `c`
-        fitted_curve = polynomial_func(time, *params)
-    
-    # Compute the confidence intervals
+        J[:, 0] = (params[1] * time * exp_mu_t) / denom - (params[1] * exp_mu_t * time * exp_mu_t) / denom**2  # Derivative w.r.t mu
+        J[:, 1] = exp_mu_t / denom  # Derivative w.r.t X0
+        J[:, 2] = -(params[1] * exp_mu_t * (exp_mu_t - 1)) / (params[2]**2 * denom**2)  # Derivative w.r.t K
+
+    elif model_type == "Polynomial Growth":
+        J[:, 0] = np.power(time, params[1])  # Derivative w.r.t a
+        J[:, 1] = params[0] * np.log(time + 1e-8) * np.power(time, params[1])  # Derivative w.r.t n
+        J[:, 2] = 1  # Derivative w.r.t b
+
+    elif model_type == "Baranyi":
+        exp_mu_t = np.exp(params[0] * time)
+        denom = 1 + params[2]
+        
+        J[:, 0] = params[1] * params[2] * time * exp_mu_t / denom  # Derivative w.r.t mu
+        J[:, 1] = (1 + params[2] * exp_mu_t) / denom  # Derivative w.r.t X0
+        J[:, 2] = params[1] * exp_mu_t / denom  # Derivative w.r.t q0
+
+    elif model_type == "Lag-Exponential-Saturation":
+        exp_mu_t = np.exp(params[0] * time)
+        denom = 1 + params[2] - (params[1] / params[3]) + (params[2] * params[1] / params[3]) * exp_mu_t
+        
+        J[:, 0] = (params[1] * params[2] * time * exp_mu_t * denom - params[1] * params[2] * (params[1] / params[3]) * time * exp_mu_t * exp_mu_t) / denom**2  # Derivative w.r.t mu
+        J[:, 1] = (params[2] * exp_mu_t * denom - (params[1] / params[3]) * denom + (params[2] / params[3]) * exp_mu_t * (params[1] * exp_mu_t)) / denom**2  # Derivative w.r.t X0
+        J[:, 2] = (params[1] * exp_mu_t * denom) / denom**2  # Derivative w.r.t q0
+        J[:, 3] = -(params[1] * params[2] * exp_mu_t * (params[1] * exp_mu_t - 1)) / (params[3]**2 * denom**2)  # Derivative w.r.t K
+
+    # Calculate confidence intervals based on the Jacobian
     conf_interval = np.zeros(len(time))
     for i in range(len(time)):
         gradient = J[i, :]
         conf_interval[i] = np.sqrt(np.dot(gradient, np.dot(covariance, gradient.T)) + residual_variance)
-    
+
+    # Fitted curve based on model
+    fitted_curve = None
+    if model_type == "Exponential":
+        fitted_curve = params[1] * np.exp(params[0] * time)
+    elif model_type == "Logistic":
+        fitted_curve = (params[1] * np.exp(params[0] * time)) / (1 + (params[1] / params[2]) * (np.exp(params[0] * time) - 1))
+    elif model_type == "Polynomial Growth":
+        fitted_curve = params[0] * np.power(time, params[1]) + params[2]
+    elif model_type == "Baranyi":
+        fitted_curve = params[1] * (1 + params[2] * np.exp(params[0] * time)) / (1 + params[2])
+    elif model_type == "Lag-Exponential-Saturation":
+        fitted_curve = params[1] * (1 + params[2] * np.exp(params[0] * time)) / (1 + params[2] - (params[1] / params[3]) + (params[2] * params[1] / params[3]) * np.exp(params[0] * time))
+
+    # Calculate the lower and upper bounds
     lower_bound = fitted_curve - t_critical * conf_interval
     upper_bound = fitted_curve + t_critical * conf_interval
+
     return lower_bound, upper_bound

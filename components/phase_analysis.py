@@ -85,6 +85,10 @@ def initialize_session_state():
     if 'average_with_std_plot' not in st.session_state:
         st.session_state.average_with_std_plot = None
 
+    # NEW: Ensure phase plots are stored and not reset
+    if 'phase_plots' not in st.session_state:
+        st.session_state.phase_plots = []  # List to store plots for each phase
+
 
 def add_phase():
     st.session_state.phases.append({
@@ -96,8 +100,28 @@ def add_phase():
         'custom_function': ''
     })
 
-def delete_phase(index):
-    st.session_state.phases.pop(index)
+def delete_phase(phase_index):
+    if phase_index < len(st.session_state.phases):
+        # Remove the phase from the phases list
+        st.session_state.phases.pop(phase_index)
+
+        # Remove the corresponding fit result if it exists
+        st.session_state.fit_results = [
+            result for result in st.session_state.fit_results if result['phase_index'] != phase_index
+        ]
+
+        # Remove the corresponding plot for the deleted phase
+        if 'phase_plots' in st.session_state and len(st.session_state.phase_plots) > phase_index:
+            st.session_state.phase_plots.pop(phase_index)
+
+        # Re-index fit results and plots after deletion
+        for i, result in enumerate(st.session_state.fit_results):
+            result['phase_index'] = i
+
+        # Rerun the app to reflect the changes
+        st.experimental_rerun()
+
+
 
 def fit_model_to_phase(phase, phase_data):
     if phase['model'] == 'UserProvidedODE':
@@ -105,7 +129,9 @@ def fit_model_to_phase(phase, phase_data):
     elif phase['model'] == 'UserProvidedFunction':
         return fit_user_provided_function(phase, phase_data)
     else:
+        # Return popt and pcov for predefined models
         return fit_predefined_model(phase, phase_data)
+
 
 # Fit predefined growth models
 def fit_predefined_model(phase, phase_data):
@@ -113,13 +139,13 @@ def fit_predefined_model(phase, phase_data):
     
     if phase_data.empty:
         st.error("Phase data is empty. Please check the start and end times.")
-        return None, None, None
+        return None, None, None, None
     
     try:
         initial_value = phase_data['Average'].iloc[0]
     except IndexError:
         st.error("Phase data is empty or start/end times are incorrect. Please adjust the times.")
-        return None, None, None
+        return None, None, None, None
 
     models = {
         'Exponential': (exponential_growth, [0.0001, initial_value]),
@@ -129,13 +155,20 @@ def fit_predefined_model(phase, phase_data):
     }
     
     model_func, initial_params = models[phase['model']]
+    
     try:
-        popt, _ = curve_fit(model_func, phase_data['Time'], phase_data['Average'], p0=initial_params, maxfev=10000)
+        # Fitting the model and getting the covariance matrix (pcov)
+        popt, pcov = curve_fit(model_func, phase_data['Time'], phase_data['Average'], p0=initial_params, maxfev=10000)
+        
+        # Calculate the fitted curve
         fit = model_func(phase_data['Time'], *popt)
-        return phase['model'], fit, popt
+        
+        # Return model name, fitted curve, parameters, and covariance matrix
+        return phase['model'], fit, popt, pcov
     except Exception as e:
         st.write(f"Error fitting {phase['model']} model: {e}")
-        return None, None, None
+        return None, None, None, None
+
 
 def fit_user_provided_ode(phase, phase_data):
     model = UserProvidedODE(phase['ode_function'])
@@ -211,3 +244,118 @@ def plot_detected_phases(time, average_ema, peaks_ema, change_points_ema):
     fig.add_trace(go.Scatter(x=time[peaks_ema], y=average_ema[peaks_ema], mode='markers', marker=dict(color='red'), name='Local Maxima'))
     fig.add_trace(go.Scatter(x=time[1:][change_points_ema], y=average_ema[1:][change_points_ema], mode='markers', marker=dict(color='green'), name='Change Points'))
     return fig
+
+
+def plot_phase_fit_with_ci(full_data, phase_time, fit, lower_bound, upper_bound, std_dev, phase_model):
+    fig = go.Figure()
+
+    # Plot the original background-subtracted data
+    fig.add_trace(go.Scatter(
+        x=full_data['Time'],
+        y=full_data['Average'],
+        mode='lines',
+        name='Original Data',
+        line=dict(color='black', dash='dash')
+    ))
+
+    # Plot the fit curve
+    fig.add_trace(go.Scatter(
+        x=phase_time,
+        y=fit,
+        mode='lines',
+        name=f'{phase_model} Fit',
+        line=dict(color='blue', width=2)
+    ))
+
+    # Plot the confidence intervals
+    fig.add_trace(go.Scatter(
+        x=phase_time,
+        y=lower_bound,
+        fill=None,
+        mode='lines',
+        line_color='lightgrey',
+        name='Lower CI'
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=phase_time,
+        y=upper_bound,
+        fill='tonexty',  # Fill to the previous trace (lower bound)
+        mode='lines',
+        line_color='lightgrey',
+        name='Upper CI'
+    ))
+
+    # Plot standard deviation as shaded area (or error bars, depending on your preference)
+    fig.add_trace(go.Scatter(
+        x=phase_time,
+        y=fit + std_dev,
+        fill=None,
+        mode='lines',
+        line=dict(color='red', dash='dash'),
+        name='Fit + SD'
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=phase_time,
+        y=fit - std_dev,
+        fill='tonexty',
+        mode='lines',
+        line=dict(color='red', dash='dash'),
+        name='Fit - SD'
+    ))
+
+    # Update layout with titles and labels
+    fig.update_layout(
+        title=f'Phase Fit with CI and SD ({phase_model} Model)',
+        xaxis_title='Time',
+        yaxis_title='Optical Density (OD)',
+        template='plotly_white'
+    )
+
+    return fig
+
+
+import plotly.graph_objects as go
+
+import plotly.graph_objects as go
+
+def plot_all_fits(full_data, fit_results):
+    fig = go.Figure()
+
+    # Plot the original data (Time vs Average) first
+    fig.add_trace(go.Scatter(
+        x=full_data['Time'],
+        y=full_data['Average'],
+        mode='lines',
+        name='Original Data',
+        line=dict(color='black', dash='dash')
+    ))
+
+    # Dynamically add fit results after plotting the original data
+    for result in fit_results:
+        phase_index = result["phase_index"]
+        fit_name = f"Fit Attempt {phase_index + 1}"
+
+        # Add the fitted curve for each phase
+        fig.add_trace(go.Scatter(
+            x=full_data['Time'],
+            y=result['fit'],
+            mode='lines',
+            name=fit_name,
+            line=dict(width=2)
+        ))
+
+    # Customize the layout with titles and labels
+    fig.update_layout(
+        title='All Fit Curves',
+        xaxis_title='Time',
+        yaxis_title='Optical Density (OD)',
+        template='plotly_white',
+        legend_title='Fits'
+    )
+
+    return fig
+
+
+

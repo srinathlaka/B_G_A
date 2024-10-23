@@ -6,9 +6,13 @@ from components.file_upload import upload_file, read_data, select_layout, genera
 from components.data_processing import select_wells, clear_selected_wells, perform_background_subtraction
 from components.model_fitting import fit_growth_model, compute_confidence_intervals
 from components.visualization import plot_avg_and_std, plot_confidence_intervals, plot_selected_wells,plot_time_vs_average_with_std
-from components.phase_analysis import convert_to_python_format, display_custom_function_latex, display_ode_latex, initialize_session_state, create_plot, detect_phases, parse_ode_function, plot_detected_phases, add_phase, delete_phase, fit_model_to_phase
+from components.phase_analysis import convert_to_python_format,plot_all_fits, display_custom_function_latex, display_ode_latex, initialize_session_state, create_plot, plot_phase_fit_with_ci, parse_ode_function, plot_detected_phases, add_phase, delete_phase, fit_model_to_phase
 from utils.growth_models import polynomial_growth, polynomial_func
 from utils.metrics import calculate_metrics
+import plotly.graph_objects as go
+import plotly.express as px
+
+st.set_page_config(page_title="Bacterial Growth Analysis", page_icon="🔬", layout="wide")
 
 def create_sample_file():
     sample_data = {
@@ -54,8 +58,13 @@ def provide_example_excel():
         )
 
 def main():
-    st.set_page_config(page_title="Bacterial Growth Analysis", page_icon="🔬", layout="wide")
+    st.title("Growth Curve Fitting")
+    st.write("This app is designed to fit growth curves to your experimental data.")
     st.markdown("<h1 style='text-align: center; color: #4CAF50;'>Bacterial Growth Analysis</h1>", unsafe_allow_html=True)
+    st.write("The app allows you to upload your bacterial growth data, fit growth models, perform background subtraction, and visualize the results.")
+    st.write("Please follow the instructions below to analyze your data.")
+    if 'fit_results' not in st.session_state:
+        st.session_state['fit_results'] = []
 
     with st.expander("Instructions for Using the Bacterial Growth Analysis Tool"):
         st.markdown("""
@@ -214,35 +223,60 @@ def main():
                     # Plot the Average with Std Dev
                     st.session_state['average_with_std_plot'] = plot_time_vs_average_with_std(st.session_state.df_bg_subtracted)
 
+    
+    # Define a placeholder for the plot
+    plot_placeholder = st.empty()  # Create the placeholder here
 
     if "df_bg_subtracted" in st.session_state:
         df_bg_subtracted = st.session_state.df_bg_subtracted
         initialize_session_state()
 
-         # Define a placeholder for the plot
-        plot_placeholder = st.empty()  # Create the placeholder here
-
-        # Define a placeholder for the plot
+        # Define a placeholder for the background-subtracted plot
         if 'bg_subtracted_plot' not in st.session_state:
             st.session_state['bg_subtracted_plot'] = None  # Initialize plot storage
 
         # Plot the background-subtracted data if it's not already stored
         if st.session_state['bg_subtracted_plot'] is None:
-            fig = create_plot(df_bg_subtracted)  
+            fig = create_plot(df_bg_subtracted)
             st.session_state['bg_subtracted_plot'] = fig
         else:
             fig = st.session_state['bg_subtracted_plot']
 
         # Display the background-subtracted plot
+        st.subheader("Background Subtracted Plot")
         st.plotly_chart(fig)
 
+        # Clear Button for background-subtracted plot
+        if st.button('Clear Background Subtracted Plot'):
+            st.session_state['bg_subtracted_plot'] = None  # Clear only the background-subtracted plot
+            st.experimental_rerun()  # Re-run the app to remove the plot from the UI
+
+        # Ensure fit_results is initialized if it doesn't exist
+        if 'fit_results' not in st.session_state:
+            st.session_state['fit_results'] = []
+
+        # Check if fit results are available and display the combined plot of all fits
+        if len(st.session_state['fit_results']) > 0:
+            # Call the function to plot all fits in one combined plot
+            #all_fits_plot = plot_all_fits(st.session_state.df_bg_subtracted, st.session_state.fit_results)
+
+            # Display the plot at the top of the Phase Analysis section
+            #st.subheader("All Fit Attempts in One Plot")
+            #st.plotly_chart(all_fits_plot)
+
+            # Clear Button for the combined fit plot
+            if st.button('Clear All Fit Plot'):
+                st.session_state['all_fits_plot'] = None  # Clear the combined fit plot
+                st.experimental_rerun()  # Re-run the app to remove the plot from the UI
+
+
         # Button to clear plot
-        if st.button('Clear Plot'):
+        #if st.button('Clear Plot'):
             # Clear the stored plot in session state
-            st.session_state['bg_subtracted_plot'] = None
-            st.session_state.fit_results = []  # Clear manual fit results
-            st.session_state.phases = []  # Clear any phase data used for automatic fitting
-            st.experimental_rerun()  # Force rerun the app to reflect changes
+            #st.session_state['bg_subtracted_plot'] = None
+            #st.session_state.fit_results = []  # Clear manual fit results
+            #st.session_state.phases = []  # Clear any phase data used for automatic fitting
+            #st.experimental_rerun()  # Force rerun the app to reflect changes
 
 
         # If the user selects "Manual" phase detection
@@ -255,10 +289,17 @@ def main():
                     phase['start'] = st.text_input(f'Start Time for Phase {i + 1}', value=str(phase['start']), key=f'start_{i}')
                 with col2:
                     phase['end'] = st.text_input(f'End Time for Phase {i + 1}', value=str(phase['end']), key=f'end_{i}')
-                
+
+                # Delete button for the current phase
+                if st.button(f'Delete Phase {i + 1}', key=f'delete_{i}'):
+                    delete_phase(i)
+                    st.experimental_rerun()
+                        
                 phase['model'] = st.selectbox(f'Model', ['Exponential', 'Logistic', 'Baranyi', 'Lag-Exponential-Saturation', 'UserProvidedODE', 'UserProvidedFunction'], index=0, key=f'model_{i}')
 
                 phase_data = df_bg_subtracted[(df_bg_subtracted['Time'] > float(phase['start'])) & (df_bg_subtracted['Time'] <= float(phase['end']))]
+                #st.write(f"Phase Data for phase {i + 1}:", phase_data)
+
 
                 if phase['model'] == 'UserProvidedODE' and not phase['automatic']:
                     ode_function_input = st.text_area(f'ODE Function for Phase {i + 1}', value=phase['ode_function'], key=f'ode_function_{i}')
@@ -356,51 +397,99 @@ def main():
                             initial_guesses['K'] = cols[3].number_input('Initial guess for K', value=1.0, key=f'K_{i}')
                         phase['initial_guesses'] = initial_guesses
 
+                        # Replace create_plot() with your new plotting function
                         if st.button('Fit Model', key=f'fit_{i}'):
-                            model_name, fit, popt = fit_model_to_phase(phase, phase_data)
+                            model_name, fit, popt, pcov = fit_model_to_phase(phase, phase_data)
                             if model_name:
+                                # Calculate residual variance and degrees of freedom
+                                residuals = phase_data['Average'] - fit
+                                dof = len(phase_data['Time']) - len(popt)
+                                residual_variance = np.var(residuals, ddof=dof)
+                                # Compute standard deviation (SD) for the phase
+                                std_dev = phase_data['Average'].std()
+                                
                                 metrics = calculate_metrics(phase_data['Average'], fit, len(popt))
+                                st.write("Appending fit results to session state")
                                 st.session_state.fit_results.append({
                                     "model_name": model_name,
                                     "fit": fit,
                                     "popt": popt,
-                                    "metrics": metrics,
+                                    "metrics": calculate_metrics(phase_data['Average'], fit, len(popt)),
                                     "phase_index": i
                                 })
-                                fig = create_plot(df_bg_subtracted)
-                                plot_placeholder.plotly_chart(fig)
+                                #st.write("Fit results after appending:", st.session_state.fit_results)
+                                #standard errors
+                                perr = np.sqrt(np.diag(pcov))
+                                
+                                st.write("Parameter Errors (Standard Deviations):", perr)
+                                
+                                # Compute confidence intervals if covariance matrix is available
+                                if pcov is not None:
+                                    lower_bound, upper_bound = compute_confidence_intervals(
+                                        phase_data['Time'], popt, pcov, 0.05, dof, residual_variance, phase['model']
+                                    )
 
-                if st.button('Delete Phase', key=f'delete_{i}'):
-                    delete_phase(i)
-                    st.experimental_rerun()
+                                    # Use your new plotting function to plot with confidence intervals
+                                    fig = plot_phase_fit_with_ci(
+                                        full_data=df_bg_subtracted,      # Full background-subtracted data
+                                        phase_time=phase_data['Time'],   # Time for the phase
+                                        fit=fit,                         # Fitted data for the phase
+                                        lower_bound=lower_bound,         # Confidence interval lower bound
+                                        upper_bound=upper_bound,         # Confidence interval upper bound
+                                        std_dev=std_dev,                 # sd
+                                        phase_model=phase['model']       # Model name for the phase
+                                    )
+
+                                # Store the plot in session state
+                                if len(st.session_state.phase_plots) <= i:
+                                    st.session_state.phase_plots.append(fig)
+                                else:
+                                    st.session_state.phase_plots[i] = fig  # Update the plot for this phase
+
+                                    # Display the plot
+                                    st.plotly_chart(fig)
+                                    st.write("it working")
+
+                        # Display all phase plots after fitting
+                        
+                        for i, plot in enumerate(st.session_state.phase_plots):
+                            st.plotly_chart(plot, use_container_width=True)
+
 
         # Display fit results for each phase
+        #st.write("Fit Results Content:", st.session_state.fit_results)
+
         for result in st.session_state.fit_results:
-            st.write(f"### Fit Results for Fit Attempt {result['phase_index'] + 1}")
-            st.write(f"Model: {result['model_name']}")
-            metrics_df = pd.DataFrame({
-                "Model": [result["model_name"]],
-                "RSS": [result["metrics"][0]],
-                "R-squared": [result["metrics"][1]],
-                "AIC": [result["metrics"][2]]
-            })
-            st.write(metrics_df)
             # Dynamically assign parameter names based on the model
             if result['model_name'] == 'Exponential':
                 params = ['mu', 'X0']
             elif result['model_name'] == 'Logistic':
                 params = ['mu', 'X0', 'K']
             elif result['model_name'] == 'Baranyi':
-                params = ['mu', 'X0', 'q0']  # Ensure the correct order for Baranyi
+                params = ['mu', 'X0', 'q0']
             elif result['model_name'] == 'Lag-Exponential-Saturation':
                 params = ['mu', 'X0', 'q0', 'K']
             else:
-                params = [f'Parameter {i+1}' for i in range(len(result["popt"]))]  # Default for custom models
+                params = [f'Parameter {i+1}' for i in range(len(result["popt"]))]
 
-            # Display the fitted parameters with appropriate names
+            # Parameters DataFrame for fitted values
             params_df = pd.DataFrame([result["popt"]], columns=params)
             st.write(f"### Fitted Parameters for Fit Attempt {result['phase_index'] + 1}")
-            st.write(params_df)
+            st.table(params_df)
+
+            # Metrics DataFrame for RSS, R-squared, and AIC
+            metrics_df = pd.DataFrame({
+                "Model": [result["model_name"]],
+                "RSS": [result["metrics"][0]],
+                "R-squared": [result["metrics"][1]],
+                "AIC": [result["metrics"][2]],
+            })
+            st.table(metrics_df)
+
+
+
+
+
 
 if __name__ == "__main__":
     main()
