@@ -25,6 +25,18 @@ def create_sample_file():
     df = pd.DataFrame(sample_data)
     return df
 
+# conver comma to float
+def convert_to_float(value):
+    """Convert a string to float, handling commas and invalid input gracefully."""
+    try:
+        # Replace comma with period and strip spaces
+        return float(value.replace(',', '.').strip())
+    except ValueError:
+        # Inform the user and return None if the conversion fails
+        st.warning(f"Invalid input '{value}'. Please enter a valid number using '.' as the decimal separator.")
+        return None
+
+
 def show_sample_file_section():
     st.subheader("Sample Data Format")
 
@@ -58,6 +70,7 @@ def provide_example_excel():
         )
 
 def main():
+    initialize_session_state()
     st.title("Growth Curve Fitting")
     st.write("This app is designed to fit growth curves to your experimental data.")
     st.markdown("<h1 style='text-align: center; color: #4CAF50;'>Bacterial Growth Analysis</h1>", unsafe_allow_html=True)
@@ -110,7 +123,9 @@ def main():
 
 
 
-    if uploaded_file is not None:
+    if uploaded_file is None:
+        st.warning("Please upload a file before proceeding.")
+    else:
         df = read_data(uploaded_file, rows, columns)
         if df is not None:
             try:
@@ -183,9 +198,6 @@ def main():
                 except Exception as e:
                     st.error(f"Error during fitting: {e}")
 
-
-
-
             # Display the stored blank wells plot if available
             if 'fitted_plot' in st.session_state and st.session_state['fitted_plot'] is not None:
                 st.plotly_chart(st.session_state['fitted_plot'])
@@ -215,6 +227,7 @@ def main():
                     st.dataframe(st.session_state.df_bg_subtracted)  # Show DataFrame with Average and Std_Dev
                 except Exception as e:
                     st.error("Error performing background subtraction. Please ensure correct well selection.")
+                
 
                 if st.session_state.df_bg_subtracted is not None:
                     # Plot the individual selected wells
@@ -224,50 +237,58 @@ def main():
                     st.session_state['average_with_std_plot'] = plot_time_vs_average_with_std(st.session_state.df_bg_subtracted)
 
     
-    # Define a placeholder for the plot
-    plot_placeholder = st.empty()  # Create the placeholder here
+        # Define a placeholder for the plot
+        plot_placeholder = st.empty()  # Create the placeholder here
 
-    if "df_bg_subtracted" in st.session_state:
-        df_bg_subtracted = st.session_state.df_bg_subtracted
-        initialize_session_state()
+        if "df_bg_subtracted" in st.session_state:
+            df_bg_subtracted = st.session_state.df_bg_subtracted
 
-        # Define a placeholder for the background-subtracted plot
-        if 'bg_subtracted_plot' not in st.session_state:
-            st.session_state['bg_subtracted_plot'] = None  # Initialize plot storage
+            # Check if df_bg_subtracted is valid before proceeding
+            if df_bg_subtracted is not None and not df_bg_subtracted.empty:
+                
+                # Define a placeholder for the background-subtracted plot
+                if 'bg_subtracted_plot' not in st.session_state:
+                    st.session_state['bg_subtracted_plot'] = None  # Initialize plot storage
 
-        # Plot the background-subtracted data if it's not already stored
-        if st.session_state['bg_subtracted_plot'] is None:
-            fig = create_plot(df_bg_subtracted)
-            st.session_state['bg_subtracted_plot'] = fig
+                # Plot the background-subtracted data if it's not already stored
+                if st.session_state['bg_subtracted_plot'] is None:
+                    fig = create_plot(df_bg_subtracted)
+                    st.session_state['bg_subtracted_plot'] = fig
+                else:
+                    fig = st.session_state['bg_subtracted_plot']
+
+                # Display the background-subtracted plot
+                st.subheader("Background Subtracted Plot")
+                st.plotly_chart(fig)
+
+                # Clear Button for background-subtracted plot
+                if st.button('Clear Background Subtracted Plot'):
+                    st.session_state['bg_subtracted_plot'] = None  # Clear only the background-subtracted plot
+                    st.experimental_rerun()  # Re-run the app to remove the plot from the UI
+
+                # Ensure fit_results is initialized if it doesn't exist
+                if 'fit_results' not in st.session_state:
+                    st.session_state['fit_results'] = []
+
+                # Check if fit results are available and display the combined plot of all fits
+                if len(st.session_state['fit_results']) > 0:
+                    # Call the function to plot all fits in one combined plot
+                    # all_fits_plot = plot_all_fits(st.session_state.df_bg_subtracted, st.session_state.fit_results)
+
+                    # Display the plot at the top of the Phase Analysis section
+                    # st.subheader("All Fit Attempts in One Plot")
+                    # st.plotly_chart(all_fits_plot)
+
+                    # Clear Button for the combined fit plot
+                    if st.button('Clear All Fit Plot'):
+                        st.session_state['all_fits_plot'] = None  # Clear the combined fit plot
+                        st.experimental_rerun()  # Re-run the app to remove the plot from the UI
+
+            else:
+                st.warning("No background-subtracted data available for plotting. Please upload a file and perform background subtraction.")
         else:
-            fig = st.session_state['bg_subtracted_plot']
+            st.warning("No data available. Please upload a file and perform background subtraction.")
 
-        # Display the background-subtracted plot
-        st.subheader("Background Subtracted Plot")
-        st.plotly_chart(fig)
-
-        # Clear Button for background-subtracted plot
-        if st.button('Clear Background Subtracted Plot'):
-            st.session_state['bg_subtracted_plot'] = None  # Clear only the background-subtracted plot
-            st.experimental_rerun()  # Re-run the app to remove the plot from the UI
-
-        # Ensure fit_results is initialized if it doesn't exist
-        if 'fit_results' not in st.session_state:
-            st.session_state['fit_results'] = []
-
-        # Check if fit results are available and display the combined plot of all fits
-        if len(st.session_state['fit_results']) > 0:
-            # Call the function to plot all fits in one combined plot
-            #all_fits_plot = plot_all_fits(st.session_state.df_bg_subtracted, st.session_state.fit_results)
-
-            # Display the plot at the top of the Phase Analysis section
-            #st.subheader("All Fit Attempts in One Plot")
-            #st.plotly_chart(all_fits_plot)
-
-            # Clear Button for the combined fit plot
-            if st.button('Clear All Fit Plot'):
-                st.session_state['all_fits_plot'] = None  # Clear the combined fit plot
-                st.experimental_rerun()  # Re-run the app to remove the plot from the UI
 
 
         # Button to clear plot
@@ -278,17 +299,40 @@ def main():
             #st.session_state.phases = []  # Clear any phase data used for automatic fitting
             #st.experimental_rerun()  # Force rerun the app to reflect changes
 
+        
 
+        # add sub heading for phase analysi
+        st.subheader("Phase Analysis")
         # If the user selects "Manual" phase detection
         st.button('Add Phase', on_click=add_phase)
 
         for i, phase in enumerate(st.session_state.phases):
             with st.expander(f"Phase {i + 1}"):
                 col1, col2 = st.columns(2)
+                # Adjust phase time input to handle incorrect formatting (e.g., commas as decimal separators)
                 with col1:
-                    phase['start'] = st.text_input(f'Start Time for Phase {i + 1}', value=str(phase['start']), key=f'start_{i}')
+                    # Handle start time input and conversion
+                    start_time = st.text_input(f'Start Time for Phase {i + 1}', value=str(phase['start']), key=f'start_{i}')
+                    phase['start'] = convert_to_float(start_time)  # Convert and sanitize input
+
                 with col2:
-                    phase['end'] = st.text_input(f'End Time for Phase {i + 1}', value=str(phase['end']), key=f'end_{i}')
+                    # Handle end time input and conversion
+                    end_time = st.text_input(f'End Time for Phase {i + 1}', value=str(phase['end']), key=f'end_{i}')
+                    phase['end'] = convert_to_float(end_time)  # Convert and sanitize input
+
+                # Check that both start and end times are valid (not None) before proceeding
+                if phase['start'] is not None and phase['end'] is not None:
+                    # Proceed with DataFrame filtering only if valid times are provided
+                    phase_data = df_bg_subtracted[
+                        (df_bg_subtracted['Time'] > phase['start']) & 
+                        (df_bg_subtracted['Time'] <= phase['end'])
+                    ]
+                else:
+                    # Display an error and avoid further processing if input is invalid
+                    st.error("Please enter valid numeric values for the phase start and end times.")
+
+
+
 
                 # Delete button for the current phase
                 if st.button(f'Delete Phase {i + 1}', key=f'delete_{i}'):
@@ -409,7 +453,7 @@ def main():
                                 std_dev = phase_data['Average'].std()
                                 
                                 metrics = calculate_metrics(phase_data['Average'], fit, len(popt))
-                                st.write("Appending fit results to session state")
+                                #st.write("Appending fit results to session state")
                                 st.session_state.fit_results.append({
                                     "model_name": model_name,
                                     "fit": fit,
@@ -421,7 +465,8 @@ def main():
                                 #standard errors
                                 perr = np.sqrt(np.diag(pcov))
                                 
-                                st.write("Parameter Errors (Standard Deviations):", perr)
+                                st.write("Parameter Errors (Standard Deviations):")
+                                st.dataframe(perr)
                                 
                                 # Compute confidence intervals if covariance matrix is available
                                 if pcov is not None:
@@ -482,7 +527,6 @@ def main():
                 "Model": [result["model_name"]],
                 "RSS": [result["metrics"][0]],
                 "R-squared": [result["metrics"][1]],
-                "AIC": [result["metrics"][2]],
             })
             st.table(metrics_df)
 

@@ -55,6 +55,7 @@ def display_custom_function_latex(custom_function):
 
 # Initialize session state for phases
 def initialize_session_state():
+    # Initialize session state for phases
     if 'phases' not in st.session_state:
         st.session_state.phases = []
     for phase in st.session_state.phases:
@@ -65,6 +66,7 @@ def initialize_session_state():
         phase.setdefault('ode_function', '')
         phase.setdefault('custom_function', '')
     
+    # Initialize equation-related session state
     if 'submit_equation' not in st.session_state:
         st.session_state.submit_equation = False
     if 'num_params' not in st.session_state:
@@ -74,10 +76,9 @@ def initialize_session_state():
     if 'ode_function_latex' not in st.session_state:
         st.session_state.ode_function_latex = ''
     if 'fit_results' not in st.session_state:
-        st.session_state.fit_results = []
+        st.session_state.fit_results = []  # This will store results for phase fitting
 
-    
-    # NEW PART - ensure df_bg_subtracted and plots are not reset
+    # Ensure df_bg_subtracted and plots are not reset
     if 'df_bg_subtracted' not in st.session_state:
         st.session_state.df_bg_subtracted = None
     if 'selected_wells_plot' not in st.session_state:
@@ -85,9 +86,17 @@ def initialize_session_state():
     if 'average_with_std_plot' not in st.session_state:
         st.session_state.average_with_std_plot = None
 
-    # NEW: Ensure phase plots are stored and not reset
+    # Ensure phase plots are stored and not reset
     if 'phase_plots' not in st.session_state:
         st.session_state.phase_plots = []  # List to store plots for each phase
+
+    # NEW PART - Initialize session state for blank wells fitting
+    if 'blank_popt' not in st.session_state:
+        st.session_state.blank_popt = None
+    if 'blank_perr' not in st.session_state:
+        st.session_state.blank_perr = None
+    if 'blank_fit_results' not in st.session_state:
+        st.session_state.blank_fit_results = None
 
 
 def add_phase():
