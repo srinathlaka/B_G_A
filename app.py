@@ -74,7 +74,7 @@ def main():
     st.title("Growth Curve Fitting")
     st.write("This app is designed to fit growth curves to your experimental data.")
     st.markdown("<h1 style='text-align: center; color: #4CAF50;'>Bacterial Growth Analysis</h1>", unsafe_allow_html=True)
-    st.write("The app allows you to upload your bacterial growth data, fit growth models, perform background subtraction, and visualize the results.")
+    st.write("The app allows you to upload your bacterial growth data,perform background subtraction, fit growth models,  and visualize the results.")
     st.write("Please follow the instructions below to analyze your data.")
     if 'fit_results' not in st.session_state:
         st.session_state['fit_results'] = []
